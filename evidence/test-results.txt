@@ -1,0 +1,22 @@
+REGRESSION TEST RESULTS
+=======================
+
+Command:
+npm test
+
+Result:
+
+Test Suites: 1 passed, 1 total
+Tests: 6 passed, 6 total
+Snapshots: 0 total
+
+Tests completed:
+
+[PASS] GET /
+[PASS] GET /health
+[PASS] GET /api/internships
+[PASS] Invalid internship validation
+[PASS] Non-existing internship
+[PASS] Unknown endpoint
+
+Result: All automated regression tests passed.

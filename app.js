@@ -1,19 +1,71 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const dotenv = require("dotenv");
 const db = require("./database");
+
+dotenv.config();
 
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
+// ==========================================
+// PRODUCTION CONFIGURATION
+// ==========================================
+
+app.disable("x-powered-by");
 
 // ==========================================
 // MIDDLEWARE
 // ==========================================
 
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
 
+app.use(cors());
+
+app.use(express.json({ limit: "100kb" }));
+
+// ==========================================
+// RATE LIMITING
+// ==========================================
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: "Too many requests. Please try again later."
+    }
+});
+
+app.use("/api", apiLimiter);
+
+// ==========================================
+// REQUEST LOGGING
+// ==========================================
+
+app.use((req, res, next) => {
+
+    const start = Date.now();
+
+    res.on("finish", () => {
+
+        const duration = Date.now() - start;
+
+        console.log(
+            `[${new Date().toISOString()}] ` +
+            `${req.method} ${req.originalUrl} ` +
+            `${res.statusCode} - ${duration}ms`
+        );
+
+    });
+
+    next();
+});
 
 // ==========================================
 // HOME ROUTE
@@ -27,6 +79,7 @@ app.get("/", (req, res) => {
         version: "1.0.0",
 
         endpoints: {
+            health: "GET /health",
             list: "GET /api/internships",
             detail: "GET /api/internships/:id",
             create: "POST /api/internships",
@@ -37,6 +90,43 @@ app.get("/", (req, res) => {
 
 });
 
+// ==========================================
+// HEALTH CHECK
+// ==========================================
+
+app.get("/health", (req, res) => {
+
+    db.get(
+        "SELECT 1 AS database_ok",
+        [],
+        (error, result) => {
+
+            if (error) {
+
+                console.error(
+                    "Health check database error:",
+                    error.message
+                );
+
+                return res.status(503).json({
+                    status: "unhealthy",
+                    service: "Internship REST API",
+                    database: "unavailable"
+                });
+
+            }
+
+            res.status(200).json({
+                status: "healthy",
+                service: "Internship REST API",
+                database: "connected",
+                timestamp: new Date().toISOString()
+            });
+
+        }
+    );
+
+});
 
 // ==========================================
 // VALIDATION FUNCTION
@@ -46,26 +136,47 @@ function validateInternship(data) {
 
     const errors = [];
 
-    // Required fields
+    if (!data || typeof data !== "object") {
 
-    if (!data.title || data.title.trim() === "") {
+        return ["Request body must be a JSON object"];
+
+    }
+
+    if (
+        typeof data.title !== "string" ||
+        data.title.trim() === ""
+    ) {
+
         errors.push("title is required");
+
     }
 
-    if (!data.domain || data.domain.trim() === "") {
+    if (
+        typeof data.domain !== "string" ||
+        data.domain.trim() === ""
+    ) {
+
         errors.push("domain is required");
+
     }
 
-    if (!data.mode || data.mode.trim() === "") {
+    if (
+        typeof data.mode !== "string" ||
+        data.mode.trim() === ""
+    ) {
+
         errors.push("mode is required");
+
     }
 
-    if (!data.location || data.location.trim() === "") {
+    if (
+        typeof data.location !== "string" ||
+        data.location.trim() === ""
+    ) {
+
         errors.push("location is required");
+
     }
-
-
-    // Skills validation
 
     if (!Array.isArray(data.skills)) {
 
@@ -73,12 +184,23 @@ function validateInternship(data) {
 
     } else if (data.skills.length === 0) {
 
-        errors.push("skills must contain at least one skill");
+        errors.push(
+            "skills must contain at least one skill"
+        );
+
+    } else if (
+        !data.skills.every(
+            skill =>
+                typeof skill === "string" &&
+                skill.trim() !== ""
+        )
+    ) {
+
+        errors.push(
+            "skills must contain valid text values"
+        );
 
     }
-
-
-    // Openings validation
 
     if (
         data.openings === undefined ||
@@ -101,20 +223,16 @@ function validateInternship(data) {
     return errors;
 }
 
-
 // ==========================================
 // GET ALL INTERNSHIPS
-// WITH PAGINATION
+// PAGINATION
 // ==========================================
 
-app.get("/api/internships", (req, res) => {
+app.get("/api/internships", (req, res, next) => {
 
     let page = parseInt(req.query.page) || 1;
 
     let limit = parseInt(req.query.limit) || 5;
-
-
-    // Protect against invalid values
 
     if (page < 1) {
         page = 1;
@@ -128,11 +246,7 @@ app.get("/api/internships", (req, res) => {
         limit = 50;
     }
 
-
     const offset = (page - 1) * limit;
-
-
-    // First get total number of records
 
     db.get(
         "SELECT COUNT(*) AS total FROM internships",
@@ -141,15 +255,9 @@ app.get("/api/internships", (req, res) => {
 
             if (countError) {
 
-                return res.status(500).json({
-                    success: false,
-                    error: "Failed to count internships"
-                });
+                return next(countError);
 
             }
-
-
-            // Then get requested records
 
             db.all(
                 `
@@ -165,58 +273,49 @@ app.get("/api/internships", (req, res) => {
 
                     if (error) {
 
-                        return res.status(500).json({
-                            success: false,
-                            error: "Failed to fetch internships"
-                        });
+                        return next(error);
 
                     }
 
+                    try {
 
-                    const internships = rows.map((row) => ({
+                        const internships = rows.map(row => ({
 
-                        id: row.id,
+                            id: row.id,
+                            title: row.title,
+                            domain: row.domain,
+                            mode: row.mode,
+                            location: row.location,
+                            skills: JSON.parse(row.skills),
+                            openings: row.openings
 
-                        title: row.title,
+                        }));
 
-                        domain: row.domain,
+                        const total = countResult.total;
 
-                        mode: row.mode,
+                        const totalPages =
+                            Math.ceil(total / limit);
 
-                        location: row.location,
+                        res.status(200).json({
 
-                        skills: JSON.parse(row.skills),
+                            success: true,
 
-                        openings: row.openings
+                            data: internships,
 
-                    }));
+                            pagination: {
+                                page,
+                                limit,
+                                total,
+                                totalPages
+                            }
 
+                        });
 
-                    const total = countResult.total;
+                    } catch (parseError) {
 
-                    const totalPages =
-                        Math.ceil(total / limit);
+                        next(parseError);
 
-
-                    res.status(200).json({
-
-                        success: true,
-
-                        data: internships,
-
-                        pagination: {
-
-                            page: page,
-
-                            limit: limit,
-
-                            total: total,
-
-                            totalPages: totalPages
-
-                        }
-
-                    });
+                    }
 
                 }
             );
@@ -226,15 +325,13 @@ app.get("/api/internships", (req, res) => {
 
 });
 
-
 // ==========================================
 // GET ONE INTERNSHIP
 // ==========================================
 
-app.get("/api/internships/:id", (req, res) => {
+app.get("/api/internships/:id", (req, res, next) => {
 
     const id = req.params.id;
-
 
     db.get(
         "SELECT * FROM internships WHERE id = ?",
@@ -244,95 +341,77 @@ app.get("/api/internships/:id", (req, res) => {
 
             if (error) {
 
-                return res.status(500).json({
-
-                    success: false,
-
-                    error: "Database error"
-
-                });
+                return next(error);
 
             }
-
 
             if (!row) {
 
                 return res.status(404).json({
 
                     success: false,
-
                     error: "Internship not found"
 
                 });
 
             }
 
+            try {
 
-            res.status(200).json({
+                res.status(200).json({
 
-                success: true,
+                    success: true,
 
-                data: {
+                    data: {
 
-                    id: row.id,
+                        id: row.id,
+                        title: row.title,
+                        domain: row.domain,
+                        mode: row.mode,
+                        location: row.location,
+                        skills: JSON.parse(row.skills),
+                        openings: row.openings
 
-                    title: row.title,
+                    }
 
-                    domain: row.domain,
+                });
 
-                    mode: row.mode,
+            } catch (parseError) {
 
-                    location: row.location,
+                next(parseError);
 
-                    skills: JSON.parse(row.skills),
-
-                    openings: row.openings
-
-                }
-
-            });
+            }
 
         }
     );
 
 });
 
-
 // ==========================================
 // CREATE INTERNSHIP
 // ==========================================
 
-app.post("/api/internships", (req, res) => {
+app.post("/api/internships", (req, res, next) => {
 
     const data = req.body;
 
-
-    // Validate data
-
     const errors =
         validateInternship(data);
-
 
     if (errors.length > 0) {
 
         return res.status(400).json({
 
             success: false,
-
             error: "Validation failed",
-
             details: errors
 
         });
 
     }
 
-
-    // Generate unique ID
-
     const id =
         "INT-" + Date.now();
-
 
     const sql = `
         INSERT INTO internships
@@ -348,7 +427,6 @@ app.post("/api/internships", (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
-
     db.run(
         sql,
 
@@ -358,7 +436,9 @@ app.post("/api/internships", (req, res) => {
             data.domain.trim(),
             data.mode.trim(),
             data.location.trim(),
-            JSON.stringify(data.skills),
+            JSON.stringify(
+                data.skills.map(skill => skill.trim())
+            ),
             data.openings
         ],
 
@@ -366,16 +446,9 @@ app.post("/api/internships", (req, res) => {
 
             if (error) {
 
-                return res.status(500).json({
-
-                    success: false,
-
-                    error: "Failed to create internship"
-
-                });
+                return next(error);
 
             }
-
 
             res.status(201).json({
 
@@ -386,18 +459,12 @@ app.post("/api/internships", (req, res) => {
 
                 data: {
 
-                    id: id,
-
-                    title: data.title,
-
-                    domain: data.domain,
-
-                    mode: data.mode,
-
-                    location: data.location,
-
+                    id,
+                    title: data.title.trim(),
+                    domain: data.domain.trim(),
+                    mode: data.mode.trim(),
+                    location: data.location.trim(),
                     skills: data.skills,
-
                     openings: data.openings
 
                 }
@@ -409,40 +476,30 @@ app.post("/api/internships", (req, res) => {
 
 });
 
-
 // ==========================================
 // UPDATE INTERNSHIP
 // ==========================================
 
-app.put("/api/internships/:id", (req, res) => {
+app.put("/api/internships/:id", (req, res, next) => {
 
     const id = req.params.id;
 
     const data = req.body;
 
-
-    // Validate
-
     const errors =
         validateInternship(data);
-
 
     if (errors.length > 0) {
 
         return res.status(400).json({
 
             success: false,
-
             error: "Validation failed",
-
             details: errors
 
         });
 
     }
-
-
-    // Check whether internship exists
 
     db.get(
         "SELECT * FROM internships WHERE id = ?",
@@ -452,90 +509,57 @@ app.put("/api/internships/:id", (req, res) => {
 
             if (findError) {
 
-                return res.status(500).json({
-
-                    success: false,
-
-                    error: "Database error"
-
-                });
+                return next(findError);
 
             }
-
 
             if (!row) {
 
                 return res.status(404).json({
 
                     success: false,
-
                     error: "Internship not found"
 
                 });
 
             }
 
-
             const sql = `
-
                 UPDATE internships
 
                 SET
-
                     title = ?,
-
                     domain = ?,
-
                     mode = ?,
-
                     location = ?,
-
                     skills = ?,
-
                     openings = ?
 
                 WHERE id = ?
-
             `;
 
-
             db.run(
-
                 sql,
 
                 [
-
                     data.title.trim(),
-
                     data.domain.trim(),
-
                     data.mode.trim(),
-
                     data.location.trim(),
-
-                    JSON.stringify(data.skills),
-
+                    JSON.stringify(
+                        data.skills.map(skill => skill.trim())
+                    ),
                     data.openings,
-
                     id
-
                 ],
 
                 function (updateError) {
 
                     if (updateError) {
 
-                        return res.status(500).json({
-
-                            success: false,
-
-                            error:
-                                "Failed to update internship"
-
-                        });
+                        return next(updateError);
 
                     }
-
 
                     res.status(200).json({
 
@@ -546,18 +570,12 @@ app.put("/api/internships/:id", (req, res) => {
 
                         data: {
 
-                            id: id,
-
-                            title: data.title,
-
-                            domain: data.domain,
-
-                            mode: data.mode,
-
-                            location: data.location,
-
+                            id,
+                            title: data.title.trim(),
+                            domain: data.domain.trim(),
+                            mode: data.mode.trim(),
+                            location: data.location.trim(),
                             skills: data.skills,
-
                             openings: data.openings
 
                         }
@@ -565,7 +583,6 @@ app.put("/api/internships/:id", (req, res) => {
                     });
 
                 }
-
             );
 
         }
@@ -573,51 +590,36 @@ app.put("/api/internships/:id", (req, res) => {
 
 });
 
-
 // ==========================================
 // DELETE INTERNSHIP
 // ==========================================
 
-app.delete("/api/internships/:id", (req, res) => {
+app.delete("/api/internships/:id", (req, res, next) => {
 
     const id = req.params.id;
 
-
     db.run(
-
         "DELETE FROM internships WHERE id = ?",
-
         [id],
 
         function (error) {
 
             if (error) {
 
-                return res.status(500).json({
-
-                    success: false,
-
-                    error:
-                        "Failed to delete internship"
-
-                });
+                return next(error);
 
             }
-
 
             if (this.changes === 0) {
 
                 return res.status(404).json({
 
                     success: false,
-
-                    error:
-                        "Internship not found"
+                    error: "Internship not found"
 
                 });
 
             }
-
 
             res.status(200).json({
 
@@ -629,14 +631,12 @@ app.delete("/api/internships/:id", (req, res) => {
             });
 
         }
-
     );
 
 });
 
-
 // ==========================================
-// 404 ROUTE
+// 404 HANDLER
 // ==========================================
 
 app.use((req, res) => {
@@ -644,22 +644,50 @@ app.use((req, res) => {
     res.status(404).json({
 
         success: false,
-
         error: "Endpoint not found"
 
     });
 
 });
 
+// ==========================================
+// GLOBAL ERROR HANDLER
+// ==========================================
+
+app.use((error, req, res, next) => {
+
+    console.error(
+        `[${new Date().toISOString()}] ERROR:`,
+        error
+    );
+
+    res.status(500).json({
+
+        success: false,
+        error: "Internal server error"
+
+    });
+
+});
 
 // ==========================================
 // START SERVER
 // ==========================================
 
-app.listen(PORT, () => {
+if (require.main === module) {
 
-    console.log(
-        `Server running at http://localhost:${PORT}`
-    );
+    app.listen(PORT, () => {
 
-});
+        console.log(
+            `Server running at http://localhost:${PORT}`
+        );
+
+    });
+
+}
+
+// ==========================================
+// EXPORT APP FOR TESTING
+// ==========================================
+
+module.exports = app;

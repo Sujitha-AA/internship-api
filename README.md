@@ -1,172 +1,235 @@
-# Internship REST API
+# 🚀 Internship API
 
-## Track
+<p align="center">
+  <img src="assets/internship-api-banner.png" alt="Internship API Banner" width="850">
+</p>
 
-Full Stack Development
+<p align="center">
+  <strong>Production-Ready Internship REST API</strong>
+</p>
 
-## Project Description
+<p align="center">
+  Node.js • Express • SQLite • Jest • Supertest
+</p>
 
-This project is a REST API for managing internship records.
+---
 
-The API was developed using Node.js, Express.js and SQLite.
+## 📌 About the Project
 
-It supports CRUD operations, input validation, pagination and persistent database storage.
+**Internship API** is a production-ready REST API for managing internship opportunities.
 
-## Technologies Used
+The project was developed as a **Full Stack Development Production-Ready Capstone** and focuses on API design, validation, database management, security, testing, logging, and production-readiness.
 
-* Node.js
-* Express.js
-* SQLite
-* JavaScript
-* REST API
-* JSON
+---
 
-## Features
+## ✨ Features
 
-* Create internship records
-* View all internship records
-* View a single internship
-* Update internship records
-* Delete internship records
-* Input validation
-* Pagination
-* SQLite persistent storage
-* Seed data
-* Consistent JSON responses
-* HTTP status codes
+* 📋 Internship CRUD operations
+* 🔎 Internship details
+* 📄 Pagination
+* ✅ Input validation
+* 💾 SQLite database
+* ❤️ Health monitoring
+* 📝 Request logging
+* 🛡️ Security headers with Helmet
+* 🚦 Rate limiting
+* 🔐 Parameterized SQL queries
+* 🧪 Automated API testing
+* 🔍 Dependency security auditing
+* ⚠️ Centralized error handling
+* 📦 Production-oriented project structure
 
-## Installation
+---
 
-Open the project folder in a terminal and install the dependencies:
-
-```bash
-npm install
-```
-
-## Seed the Database
-
-Run:
-
-```bash
-npm run seed
-```
-
-This creates the SQLite database and inserts the sample internship records.
-
-## Start the Server
-
-Run:
-
-```bash
-npm start
-```
-
-The API runs at:
+## 🏗️ Architecture
 
 ```text
-http://localhost:3000
+                 ┌─────────────────────┐
+                 │      Client         │
+                 │ Browser / API Tool  │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │   Express Server    │
+                 │      app.js         │
+                 └──────────┬──────────┘
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+        Validation      Security       Logging
+             │          Helmet/Rate       │
+             │           Limiting         │
+             └──────────────┬──────────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │     SQLite DB       │
+                 │   internship.db     │
+                 └─────────────────────┘
 ```
 
-## API Endpoints
+---
 
-| Method | Endpoint               | Purpose            |
-| ------ | ---------------------- | ------------------ |
-| GET    | `/`                    | API information    |
-| GET    | `/api/internships`     | List internships   |
-| GET    | `/api/internships/:id` | Get one internship |
-| POST   | `/api/internships`     | Create internship  |
-| PUT    | `/api/internships/:id` | Update internship  |
-| DELETE | `/api/internships/:id` | Delete internship  |
+## 🛠️ Technology Stack
 
-## Pagination
+| Technology         | Purpose                   |
+| ------------------ | ------------------------- |
+| Node.js            | Runtime                   |
+| Express            | REST API framework        |
+| SQLite             | Database                  |
+| JavaScript         | Application language      |
+| Helmet             | Security headers          |
+| Express Rate Limit | Request protection        |
+| CORS               | Cross-origin support      |
+| dotenv             | Environment configuration |
+| Jest               | Testing framework         |
+| Supertest          | API testing               |
 
-Example:
+---
+
+## 🌐 API Endpoints
+
+| Method   | Endpoint               | Description               |
+| -------- | ---------------------- | ------------------------- |
+| `GET`    | `/`                    | API information           |
+| `GET`    | `/health`              | Health and database check |
+| `GET`    | `/api/internships`     | List internships          |
+| `GET`    | `/api/internships/:id` | Get internship            |
+| `POST`   | `/api/internships`     | Create internship         |
+| `PUT`    | `/api/internships/:id` | Update internship         |
+| `DELETE` | `/api/internships/:id` | Delete internship         |
+
+---
+
+## ❤️ Health Check
+
+The application provides:
 
 ```text
-GET /api/internships?page=1&limit=2
+GET /health
 ```
 
-The response contains:
-
-* Current page
-* Number of records per page
-* Total records
-* Total pages
-
-## Example POST Request
+Example response:
 
 ```json
 {
-  "title": "Backend Developer Intern",
-  "domain": "Full Stack Development",
-  "mode": "Remote",
-  "location": "Chennai",
-  "skills": [
-    "Node.js",
-    "Express",
-    "SQLite"
-  ],
-  "openings": 2
+  "status": "healthy",
+  "service": "Internship REST API",
+  "database": "connected"
 }
 ```
 
-## Example Successful Response
+The health endpoint verifies both the application and SQLite database connection.
+
+---
+
+## 📄 Pagination
+
+The internship listing supports pagination:
+
+```text
+GET /api/internships?page=1&limit=5
+```
+
+The API limits the maximum page size to **50 records**.
+
+Example response:
 
 ```json
 {
   "success": true,
-  "message": "Internship created successfully",
-  "data": {
-    "id": "INT-XXXXXXXXXXXXX",
-    "title": "Backend Developer Intern",
-    "domain": "Full Stack Development",
-    "mode": "Remote",
-    "location": "Chennai",
-    "skills": [
-      "Node.js",
-      "Express",
-      "SQLite"
-    ],
-    "openings": 2
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "limit": 5,
+    "total": 0,
+    "totalPages": 0
   }
 }
 ```
 
-## Validation
+---
 
-Invalid input returns:
+## 🔐 Security
+
+The project includes several production-oriented security measures:
+
+* Helmet security headers
+* Rate limiting
+* Request body size limits
+* Input validation
+* Parameterized SQLite queries
+* Disabled Express `X-Powered-By` header
+* CORS configuration
+* Dependency security auditing
+
+Security audit result:
 
 ```text
-400 Bad Request
+npm audit
+found 0 vulnerabilities
 ```
 
-Example validation errors include:
+---
 
-* title is required
-* skills must contain at least one skill
-* openings must be a non-negative integer
+## 🧪 Testing
 
-## HTTP Status Codes
+Automated tests are implemented using **Jest** and **Supertest**.
 
-| Status Code | Meaning               |
-| ----------- | --------------------- |
-| 200         | Successful request    |
-| 201         | Resource created      |
-| 400         | Validation error      |
-| 404         | Resource not found    |
-| 500         | Server/database error |
+Run:
 
-## Sample Data
+```bash
+npm test
+```
 
-The project contains fictional internship records for:
+Current regression test coverage verifies:
 
-* Frontend Development
-* API Engineering
-* UI/UX
-* Data Analytics
-* Cyber Security
+```text
+✓ GET /
+✓ GET /health
+✓ GET /api/internships
+✓ Invalid internship validation
+✓ Non-existing internship
+✓ Unknown endpoint
+```
 
-## Project Structure
+Test result:
+
+```text
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+```
+
+---
+
+## 📊 Quality Assurance
+
+The project includes evidence for:
+
+| Check                | Result              |
+| -------------------- | ------------------- |
+| Regression testing   | ✅ Passed            |
+| Security audit       | ✅ 0 vulnerabilities |
+| Health check         | ✅ Passed            |
+| API validation       | ✅ Passed            |
+| Performance review   | ✅ Completed         |
+| Accessibility review | ✅ Completed         |
+
+Supporting evidence is available in:
+
+```text
+evidence/
+├── test-results.txt
+├── security-check.txt
+├── accessibility-check.txt
+└── performance-check.txt
+```
+
+---
+
+## 📁 Project Structure
 
 ```text
 internship-api/
@@ -174,25 +237,6 @@ internship-api/
 ├── app.js
 ├── database.js
 ├── seed.js
-├── internship.db
 ├── package.json
-├── package-lock.json
-└── README.md
+├── pa
 ```
-
-## Testing
-
-The API was tested using Postman.
-
-Tested operations:
-
-* GET
-* POST
-* PUT
-* DELETE
-* Pagination
-* Input validation
-
-## Conclusion
-
-This project demonstrates REST API development using Node.js and Express with SQLite persistent storage. It implements CRUD operations, validation, pagination, seed data and consistent API responses.

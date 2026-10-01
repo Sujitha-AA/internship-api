@@ -1,0 +1,21 @@
+PERFORMANCE CHECK
+=================
+
+Project: Internship API
+
+Performance and scalability checks:
+
+[PASS] GET / responds successfully.
+[PASS] GET /health responds successfully.
+[PASS] Internship listing supports pagination.
+[PASS] Maximum page size is limited to 50 records.
+[PASS] SQLite queries use parameters.
+[PASS] Request duration is logged.
+[PASS] JSON request body size is limited to 100 KB.
+[PASS] Health endpoint verifies database connectivity.
+
+Pagination example:
+
+GET /api/internships?page=1&limit=5
+
+Result: Basic performance and scalability checks completed.

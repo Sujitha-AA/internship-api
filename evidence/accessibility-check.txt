@@ -1,0 +1,30 @@
+ACCESSIBILITY CHECK
+===================
+
+Project: Internship API
+
+The current project is a REST API and does not contain a
+full browser-based user interface.
+
+API accessibility review:
+
+[PASS] JSON responses use clear and readable field names.
+[PASS] Error responses provide understandable messages.
+[PASS] HTTP status codes communicate request results.
+[PASS] API endpoints can be tested without visual interaction.
+
+Limitation:
+
+A full browser accessibility audit is not applicable to the
+current API-only implementation.
+
+Future frontend accessibility checks should include:
+
+- Keyboard navigation
+- Form labels
+- Visible focus states
+- Color contrast
+- Responsive/mobile layout
+- Screen-reader compatibility
+
+Result: API accessibility review completed.
