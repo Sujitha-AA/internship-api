@@ -1,0 +1,19 @@
+{
+  "name": "internship-api",
+  "version": "1.0.0",
+  "description": "Internship REST API using Node.js, Express and SQLite",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "seed": "node seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "sqlite3": "^6.0.1"
+  }
+}
